@@ -41,6 +41,18 @@ if (sscanf(line, "%31[^:] : %lu kB", name, &v) == 2 && strcmp(name, key) == 0) {
 5. `%lu` 读数值
 6. ` kB` 匹配单位，顺便验证行格式正确
 
+### `scanf` 家族对比（数据来源差异）
+
+| 函数 | 原型 | 输入源 | 适用场景 |
+|---|---|---|---|
+| **`scanf`** | `int scanf(const char *format, ...)` | **标准输入 `stdin`**（终端键盘） | 简单控制台交互（会阻塞等待输入） |
+| **`sscanf`** | `int sscanf(const char *str, const char *format, ...)` | **内存字符串**（`const char *str`） | **解析已读入内存的数据行/协议/报文** |
+| **`fscanf`** | `int fscanf(FILE *stream, const char *format, ...)` | **文件流 `FILE *`** | 直接从文件流读取格式化字段 |
+
+> **黄金法则：为什么推荐 `fgets` + `sscanf` 组合？**
+> - **直接用 `scanf`/`fscanf` 的缺陷**：如果某一行格式不匹配，错误的字符会**残留在输入缓冲区**，导致后续读取全部错乱甚至死循环。
+> - **`fgets` + `sscanf`（两步走）**：先用 `fgets` 安全读整行到内存，再用 `sscanf` 解析。解析失败直接跳过，绝不污染后续行的读取，实现 **I/O 与解析解耦**。
+
 ## 相关函数
 
 ```c

@@ -2,8 +2,8 @@
 
 **目标**：打好 Linux 用户态 C 基础，最终能读懂并独立开发 `imx6u-edgepanel` 项目（ATK I.MX6U 边缘监控终端）。
 
-- 练习代码在 `../test/`
-- 学习笔记在 `../learning-note/`
+- 练习代码在 `test/`
+- 学习笔记在 `learning-note/`
 - 每个练习只引入一个清晰的新概念，先在 Ubuntu 本机验证，再上板
 
 ## 学习路线
@@ -21,7 +21,8 @@
 | 9 | 回看 system_monitor.c 的已学部分 | /proc、文件操作、解析、函数拆分 | ✅ 完成 |
 | 10 | pipe 单向进程间通信 | pipe、read、write、close、EOF | ✅ 完成 |
 | 11 | 两个 pipe 实现双向通信 | 请求、响应、双向数据流 | ✅ 完成 |
-| 12 | Unix Domain Socket | socketpair、本机进程间全双工通信 | 🚧 **当前预习** |
+| 12 | Unix Domain Socket | socketpair、本机进程间全双工通信 | ✅ 完成 |
+
 
 ## 主题笔记
 

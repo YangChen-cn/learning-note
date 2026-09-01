@@ -51,79 +51,98 @@ socket → bind → listen → accept
                        connect
 ~~~
 
-## 二、socketpair() 函数
+## 二、socketpair() 函数详解
 
 函数原型：
 
 ~~~c
+#include <sys/types.h>
 #include <sys/socket.h>
 
-int socketpair(int domain, int type, int protocol, int socket_vector[2]);
+int socketpair(int domain, int type, int protocol, int sv[2]);
 ~~~
 
-参数含义：
+### 1. 参数深度剖析
 
-- `domain`：地址族，本课使用 `AF_UNIX`
-- `type`：通信类型，本课使用 `SOCK_STREAM`
-- `protocol`：协议，通常填写 `0`，让系统选择默认协议
-- `socket_vector`：长度为 2 的数组，用来接收两个 socket 文件描述符
+#### ① `domain`（地址族 / 通信域）
+告诉内核**“通信发生的范围与环境”**：
+- **`AF_UNIX`**（或 `AF_LOCAL`）：**Unix 域协议族**。专门用于**同一台主机上的本地进程间通信**。数据直接在内核内存中流转，不经过物理网卡、不需要 IP 地址和端口号，效率极高。`socketpair()` 绝大多数情况下只支持 `AF_UNIX`。
+- *对比参考*：`AF_INET` 代表 IPv4 网络通信（跨机器），`AF_INET6` 代表 IPv6 网络通信。
+  > **注**：`AF_` 是 **A**ddress **F**amily 的缩写；你有时会看到 `PF_`（Protocol Family），在现代 Linux 中两者数值完全等价。
 
-调用成功后：
+#### ② `type`（套接字类型 / 数据传输模式）
+告诉内核**“数据以何种规则在两者之间流动”**：
+- **`SOCK_STREAM`**（流式传输）：
+  - 提供**面向连接、双向、可靠、按顺序到达的字节流**。
+  - **无消息边界**（像水管一样流水，多次 `write` 可能会被一次 `read` 读走，或者一次 `write` 被分多次 `read` 读走）。本课我们采用这种最常用的流模式。
+- **`SOCK_DGRAM`**（数据报传输）：
+  - 提供**保留消息边界**的独立数据包通信（一次 `write` 发一个包，一次 `read` 收一个包）。
+- **`SOCK_CLOEXEC` / `SOCK_NONBLOCK`**（可选标志位）：
+  - 可以通过位或（`|`）添加，例如 `SOCK_STREAM | SOCK_CLOEXEC`，直接在创建时开启执行 `exec` 时自动关闭或非阻塞 I/O。
 
+| 类型 | 是否有消息边界 | 是否可靠顺序 | 典型类比 |
+|---|---|---|---|
+| **`SOCK_STREAM`** | ❌ 无边界（连续字节流） | ✅ 绝对可靠、严格有序 | 像自来水管，字节连续流动 |
+| **`SOCK_DGRAM`** | ✅ 有边界（独立数据包） | ✅ 本地通信下可靠（网络下不可靠） | 像寄信件，一封就是一封 |
+
+#### ③ `protocol`（具体协议）
+告诉内核在给定的 `domain` 和 `type` 下使用哪种具体底层协议：
+- 通常直接填 **`0`**：表示由内核**自动选择该组合下的默认协议**（在 `AF_UNIX` + `SOCK_STREAM` 组合下，`0` 就会自动选择 Unix 域流式协议）。
+
+#### ④ `sv[2]`（输出参数：文件描述符数组）
+长度为 2 的整型数组，用来**接收内核创建好的两个 socket 文件描述符**：
+- `sv[0]` 和 `sv[1]`：两个完全对称、已经相互连接好的 socket 句柄。
+
+---
+
+### 2. 返回值与错误处理
+
+- **成功**：返回 **`0`**，且内核将两个连通的 socket 文件描述符填入 `sv[0]` 和 `sv[1]`。
+- **失败**：返回 **`-1`**，并设置全局错误码 `errno`。
+
+标准检查代码：
 ~~~c
-int sockets[2];
+int sv[2];
 
-if (socketpair(AF_UNIX, SOCK_STREAM, 0, sockets) < 0) {
+if (socketpair(AF_UNIX, SOCK_STREAM, 0, sv) < 0) {
     perror("socketpair");
     return EXIT_FAILURE;
 }
 ~~~
 
-返回值：
+---
 
-- `0`：成功
-- `-1`：失败，并设置 `errno`
+## 三、socketpair() 与 pipe() 的本质区别
 
-和 pipe 不同，`sockets[0]`、`sockets[1]` 没有固定的读端和写端。两个 socket 都可以读，也都可以写。
+很多初学者容易把 `socketpair()` 当成管道，两者的核心差异在于**“单向 vs 全双工”**和**“端点对称性”**：
 
-## 三、socketpair() 和 pipe() 的区别
+### 1. 结构与对称性对比
 
-pipe：
+| 特性 | `pipe(pipefd)` | `socketpair(..., sv)` |
+| :--- | :--- | :--- |
+| **方向性** | **半双工（单向）** | **全双工（双向同时可读写）** |
+| **端点职责** | 严格固定：<br>`pipefd[0]` **只能读**<br>`pipefd[1]` **只能写** | **完全对称**：<br>`sv[0]` **可读也可写**<br>`sv[1]` **可读也可写** |
+| **双向通信所需数量** | 需要 **2 个 pipe**（共 4 个 fd） | 只需 **1 个 socketpair**（共 2 个 fd） |
+| **底层实现** | 匿名管道缓冲区 | 本地双向 Socket 套接字对 |
 
-~~~c
-int pipefd[2];
-pipe(pipefd);
-~~~
+### 2. 全双工数据流图解
 
-通常约定：
+```text
+               ┌────────── 写入 sv[0] ──────────┐
+               │                                │
+               │                                ▼
+       ┌───────────────┐                ┌───────────────┐
+       │     sv[0]     │                │     sv[1]     │
+       │ (父进程持有)   │                │ (子进程持有)   │
+       └───────────────┘                └───────────────┘
+               ▲                                │
+               │                                │
+               └────────── 写入 sv[1] ──────────┘
+```
 
-~~~
-pipefd[0]：读
-pipefd[1]：写
-~~~
-
-如果要双向通信，就需要两个 pipe。
-
-socketpair：
-
-~~~c
-int sockets[2];
-socketpair(AF_UNIX, SOCK_STREAM, 0, sockets);
-~~~
-
-两个描述符都支持读写：
-
-~~~
-sockets[0]：可读、可写
-sockets[1]：可读、可写
-~~~
-
-因此父子进程可以各保留一个：
-
-~~~
-父进程使用 sockets[0]
-子进程使用 sockets[1]
-~~~
+- 向 `sv[0]` 执行 `write`，数据会流向 `sv[1]`，由对端通过 `read(sv[1])` 读取。
+- 向 `sv[1]` 执行 `write`，数据会流向 `sv[0]`，由对端通过 `read(sv[0])` 读取。
+- 两个方向互相独立，互不干扰。
 
 ## 四、fork() 后应该关闭什么
 
@@ -288,6 +307,19 @@ int main(void)
 
 注意：这里的示例代码已经检查了短写；真实练习中还要继续考虑 `EINTR`，可以直接复用上一课的 `write_all()`。
 
+### 示例代码关键细节逐行解析：
+
+1. **`ssize_t bytes_read` 与 `ssize_t bytes_written`**：
+   - 必须使用有符号的 `ssize_t`（而不是 `int` 或 `size_t`），因为 `read()` / `write()` 失败时会返回 `-1`，成功时返回正字节数。在 64 位系统下 `ssize_t` 为 8 字节，避免数据截断。
+2. **`close(sockets[0])`（子进程）与 `close(sockets[1])`（父进程）**：
+   - `fork()` 产生副本后，每个进程都拥有 2 个 fd。
+   - 子进程必须立即关掉不属于它的 `sockets[0]`，父进程关掉 `sockets[1]`。
+   - **为什么必须关？** 如果父进程不关 `sockets[1]`，那么整个系统中 `sockets[1]` 的引用计数依然是 1（父进程还占着）。当子进程退出或关闭 `sockets[1]` 时，系统认为写端并没有真正彻底关闭，父进程在 `read(sockets[0])` 时就**永远等不到 EOF（返回 0），从而导致程序永久卡死**！
+3. **EOF 的产生条件**：
+   - 当对端执行 `close(fd)` 后，本端调用 `read()` 读完缓冲区剩余数据后，下一次 `read()` 会**返回 `0`（代表对端已关闭，遇到 EOF）**。
+4. **`_exit(EXIT_FAILURE)` 与 `fflush(stdout)`**：
+   - 子进程退出推荐使用 `_exit()`（或由 `main` 返回），它不清理父进程继承的标准 I/O 缓冲区；因此在 `_exit()` 前调用 `printf()` 必须手动加 `fflush(stdout)`。
+
 运行结果类似：
 
 ~~~text
@@ -295,8 +327,6 @@ int main(void)
 父进程收到：running
 子进程退出，状态码：0
 ~~~
-
-`fflush(stdout)` 是因为子进程最后使用 `_exit()`。`_exit()` 不会执行 C 标准库的输出缓冲刷新，所以如果不手动刷新，`printf()` 的内容可能看不到。
 
 ## 六、socketpair() 仍然是字节流
 
