@@ -22,7 +22,8 @@
 | 10 | pipe 单向进程间通信 | pipe、read、write、close、EOF | ✅ 完成 |
 | 11 | 两个 pipe 实现双向通信 | 请求、响应、双向数据流 | ✅ 完成 |
 | 12 | Unix Domain Socket | socketpair、本机进程间全双工通信 | ✅ 完成 |
-| 13 | Unix Domain Socket 服务端/客户端 | bind/listen/accept/connect、sockaddr_un、unlink | 🚧 **当前预习** |
+| 13 | Unix Domain Socket 服务端/客户端 | bind/listen/accept/connect、sockaddr_un、unlink | ✅ 完成 |
+| 14 | I/O 多路复用 poll | poll、struct pollfd、POLLIN、事件主循环 | 🚧 **当前预习** |
 
 ## 主题笔记
 
@@ -43,6 +44,8 @@
 - [15 两个 pipe 双向通信](15-two-pipes.md) — 请求、响应、端点关闭和阻塞
 - [16 Unix Domain Socket](16-unix-domain-socket.md) — socketpair、本机进程间全双工通信
 - [17 Unix Socket 服务端与客户端](17-unix-socket-server.md) — 命名套接字、bind/listen/accept/connect
+- [18 I/O 多路复用 poll](18-io-multiplexing-poll.md) — poll、struct pollfd、非阻塞事件驱动
+
 
 
 ## 使用约定

@@ -1,7 +1,7 @@
 CC := gcc
 CFLAGS := -Wall -Wextra -Wpedantic -std=c11 -g
 
-TARGETS := build/uptime build/meminfo build/monitor build/monitor_args build/monitor_log build/monitor_fork build/monitor_exec build/monitor_session build/system_monitor_learn build/pipe_demo build/monitor_two_pipe build/monitor_socketpair
+TARGETS := build/uptime build/meminfo build/monitor build/monitor_args build/monitor_log build/monitor_fork build/monitor_exec build/monitor_session build/system_monitor_learn build/pipe_demo build/monitor_two_pipe build/monitor_socketpair build/monitor_server build/monitor_client
 
 all: $(TARGETS)
 
@@ -40,6 +40,12 @@ build/monitor_two_pipe: monitor_two_pipe.c | build
 
 build/monitor_socketpair: monitor_socketpair.c | build
 	$(CC) $(CFLAGS) monitor_socketpair.c -o $@
+
+build/monitor_server: monitor_server.c | build
+	$(CC) $(CFLAGS) monitor_server.c -o $@
+
+build/monitor_client: monitor_client.c | build
+	$(CC) $(CFLAGS) monitor_client.c -o $@
 
 build:
 	mkdir -p build
@@ -80,7 +86,13 @@ run-monitor-two-pipe: build/monitor_two_pipe
 run-monitor-socketpair: build/monitor_socketpair
 	./build/monitor_socketpair
 
+run-monitor-server: build/monitor_server
+	./build/monitor_server
+
+run-monitor-client: build/monitor_client
+	./build/monitor_client
+
 clean:
 	rm -rf build
 
-.PHONY: all run run-meminfo run-monitor run-monitor-args run-monitor-log run-monitor-fork run-monitor-exec run-monitor-session run-system-monitor-learn run-pipe-demo run-monitor-two-pipe run-monitor-socketpair clean
+.PHONY: all run run-meminfo run-monitor run-monitor-args run-monitor-log run-monitor-fork run-monitor-exec run-monitor-session run-system-monitor-learn run-pipe-demo run-monitor-two-pipe run-monitor-socketpair run-monitor-server run-monitor-client clean

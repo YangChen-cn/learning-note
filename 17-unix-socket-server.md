@@ -231,6 +231,10 @@ int main(void) {
 4. **客户端连接时服务端未启动**：
    - 现象：`connect` 报 `No such file or directory` 或 `Connection refused`。
    - 解决：必须先启动服务端建立监听文件，客户端才能连接。
+5. **【经典陷阱】服务端响应完成后未调用 `close(client_fd)` 导致客户端卡死**：
+   - 现象：客户端成功读到了数据，但程序一直挂起无法正常退出。
+   - 根因：客户端在 `while ((n = read(sock_fd, ...)) > 0)` 中等待服务端发送结束（读到 EOF 返回 `0`）。若服务端没有执行 `close(client_fd)`，内核认为服务端随时可能继续写入，因此客户端在第二次 `read()` 时会**永久阻塞休眠**（什么都读不到，也不返回）。
+   - 解决：服务端每次完成响应后，必须显式调用 `close(client_fd)`，向客户端传递 EOF 信号并防止文件描述符泄露。
 
 ---
 
@@ -244,3 +248,4 @@ int main(void) {
 2. **`monitor_client.c`**：
    - 连接 `/tmp/imx6u_monitor.sock`。
    - 发送 `"meminfo\n"` 并打印收到的内存指标。
+
